@@ -72,6 +72,35 @@ export async function loginAction(prevState: any, formData: FormData) {
 
     revalidatePath("/", "layout");
     redirect("/");
+  } else if (roleType === "teacher") {
+    // Teacher login uses 'teachers' table
+    const { data: teacher, error } = await supabaseAdmin
+      .from("teachers")
+      .select("id, name, email, password")
+      .ilike("email", email)
+      .maybeSingle();
+
+    if (error || !teacher || teacher.password !== password) {
+      return { error: "Invalid login credentials for Teacher." };
+    }
+
+    // Set Teacher Auth cookies
+    cookieStore.set("auth_role", "teacher", {
+      httpOnly: false,
+      secure: process.env.NODE_ENV === "production",
+      maxAge: 60 * 60 * 24 * 7,
+      path: "/",
+    });
+
+    cookieStore.set("teacher_id", teacher.id, {
+      httpOnly: false,
+      secure: process.env.NODE_ENV === "production",
+      maxAge: 60 * 60 * 24 * 7,
+      path: "/",
+    });
+
+    revalidatePath("/", "layout");
+    redirect("/");
   } else {
     // Supervisor/Staff login uses Database Table lookup
     const { data: staff, error } = await supabaseAdmin
@@ -121,35 +150,6 @@ export async function loginAction(prevState: any, formData: FormData) {
     } else {
         redirect("/");
     }
-  } else if (roleType === "teacher") {
-    // Teacher login uses 'teachers' table
-    const { data: teacher, error } = await supabaseAdmin
-      .from("teachers")
-      .select("id, name, email, password")
-      .ilike("email", email)
-      .maybeSingle();
-
-    if (error || !teacher || teacher.password !== password) {
-      return { error: "Invalid login credentials for Teacher." };
-    }
-
-    // Set Teacher Auth cookies
-    cookieStore.set("auth_role", "teacher", {
-      httpOnly: false,
-      secure: process.env.NODE_ENV === "production",
-      maxAge: 60 * 60 * 24 * 7,
-      path: "/",
-    });
-
-    cookieStore.set("teacher_id", teacher.id, {
-      httpOnly: false,
-      secure: process.env.NODE_ENV === "production",
-      maxAge: 60 * 60 * 24 * 7,
-      path: "/",
-    });
-
-    revalidatePath("/", "layout");
-    redirect("/");
   }
 }
 
