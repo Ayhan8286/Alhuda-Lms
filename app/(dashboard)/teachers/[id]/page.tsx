@@ -359,7 +359,6 @@ export default function TeacherProfilePage() {
                                 </>
                             )}
                         </div>
-                    </div>
 
 
                     {/* ══════ TAB: Class List (existing CRUD table) ══════ */}
