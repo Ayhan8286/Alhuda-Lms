@@ -85,6 +85,7 @@ export interface AppAccount {
 
 export interface StudentByPlatform {
     student_id: string;
+    app_account_id: string; // Added for platform management
     student_name: string;
     student_reg_no: string;
     account_identifier: string;

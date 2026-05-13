@@ -61,6 +61,7 @@ export async function getStudentsByPlatform(platformId: string): Promise<Student
         if (student && !studentMap.has(student.id)) {
             studentMap.set(student.id, {
                 student_id: student.id,
+                app_account_id: cls.app_account_id,
                 student_name: student.full_name,
                 student_reg_no: student.reg_no,
                 account_identifier: accountMap.get(cls.app_account_id)?.identifier || "Unknown",

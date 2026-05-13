@@ -182,7 +182,7 @@ export default function PlatformsPage() {
                                                     <input 
                                                         className="pill-input py-1.5 px-3 glass-panel border border-border text-[11px] font-medium w-40 placeholder:text-muted-foreground/40"
                                                         placeholder="Paste link here..."
-                                                        defaultValue={students.find(s => s.student_id === student.student_id)?.account_id ? "" : ""} // This is tricky as we don't have account_id in StudentByPlatform
+                                                        defaultValue={students.find(s => s.student_id === student.student_id)?.app_account_id ? "" : ""} // This is tricky as we don't have account_id in StudentByPlatform
                                                         onBlur={async (e) => {
                                                             // We need to find the account_id. Let's assume student.account_identifier is unique for now or refetch needed
                                                             // For now, let's just show it and tell user to use the dedicated manage button
