@@ -153,7 +153,7 @@ export default function TeacherProfilePage() {
 
     const { data: students = [] } = useQuery({
         queryKey: ["students"],
-        queryFn: getStudents,
+        queryFn: async () => (await getStudents()).data,
         ...STALE_SHORT,
     });
 

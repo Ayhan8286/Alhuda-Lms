@@ -30,7 +30,7 @@ export function AddComplaintDialog({ open, onOpenChange }: AddComplaintDialogPro
         status: "Pending",
     });
 
-    const { data: students = [] } = useQuery({ queryKey: ["students"], queryFn: getStudents });
+    const { data: students = [] } = useQuery({ queryKey: ["students"], queryFn: async () => (await getStudents()).data });
     const { data: teachers = [] } = useQuery({ queryKey: ["teachers"], queryFn: getTeachers });
 
     const { data: studentClasses = [] } = useQuery({

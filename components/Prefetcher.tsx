@@ -42,7 +42,7 @@ export function Prefetcher() {
             queryClient.prefetchQuery({ queryKey: ["students", "supervisor", supervisorId], queryFn: () => getStudentsBySupervisor(supervisorId) });
         } else {
             queryClient.prefetchQuery({ queryKey: ["teachers"], queryFn: getTeachers });
-            queryClient.prefetchQuery({ queryKey: ["students"], queryFn: getStudents });
+            queryClient.prefetchQuery({ queryKey: ["students"], queryFn: () => getStudents() });
         }
 
         // Tier 2: Secondary tabs
