@@ -20,11 +20,9 @@ export async function getStudents(params: GetStudentsParams = {}): Promise<{ dat
     let query = supabase
         .from("students")
         .select(`
-            id, full_name, reg_no, guardian_name, status, shift, guardian_id, shift_id, supervisor_id,
+            *,
             supervisor:supervisors(name),
-            classes(
-                course:courses(name)
-            )
+            classes(id, course:courses(name))
         `, { count: 'exact' });
 
     // Apply Filters
