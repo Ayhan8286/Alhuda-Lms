@@ -186,7 +186,7 @@ export async function getSiblings(student: Student): Promise<Student[]> {
 
 export async function updateStudent(
     id: string,
-    updates: Partial<Pick<Student, "full_name" | "status" | "shift" | "reg_no" | "supervisor_id" | "guardian_name">>
+    updates: Partial<Pick<Student, "full_name" | "status" | "shift" | "reg_no" | "supervisor_id" | "guardian_name" | "performance_notes">>
 ): Promise<Student | null> {
     const { data, error } = await supabase
         .from("students")
