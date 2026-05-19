@@ -79,6 +79,26 @@ const SHORT_DAYS: Record<string, string> = {
     Thursday: "Thu", Friday: "Fri", Saturday: "Sat", Sunday: "Sun",
 };
 
+const generateTimeSlots = () => {
+    const slots = [];
+    for (let h = 0; h < 24; h++) {
+        for (let m = 0; m < 60; m += 30) {
+            const isPM = h >= 12;
+            const hour12 = h % 12 === 0 ? 12 : h % 12;
+            const minStr = m.toString().padStart(2, '0');
+            const modifier = isPM ? 'PM' : 'AM';
+            const timeStr = `${hour12}:${minStr} ${modifier}`;
+            slots.push({
+                timeStr,
+                startMinutes: h * 60 + m,
+                endMinutes: h * 60 + m + 30
+            });
+        }
+    }
+    return slots;
+};
+const TIME_SLOTS = generateTimeSlots();
+
 export default function TimetablePage() {
     const queryClient = useQueryClient();
     const activeRef = useRef<HTMLDivElement>(null);
@@ -92,7 +112,6 @@ export default function TimetablePage() {
     const [selectedSupervisorId, setSelectedSupervisorId] = useState<string>("All");
     const [selectedTeacherId, setSelectedTeacherId] = useState<string>("All");
     const [selectedTime, setSelectedTime] = useState<string>("All");
-    const [gridTimezone, setGridTimezone] = useState<"pk" | "uk">("pk");
     const [nowMinutes, setNowMinutes] = useState(getCurrentPKMinutes());
     
     // Auth State safely loaded on client
@@ -188,22 +207,26 @@ export default function TimetablePage() {
             };
         });
 
-        // 2. Group by Normalized Start Time
-        const groups: Record<string, any[]> = {};
-        sessions.forEach(cls => {
-            const timeKey = normalizeTime(cls.pak_start_time);
-            if (!groups[timeKey]) groups[timeKey] = [];
-            groups[timeKey].push(cls);
+        // 2. Map sessions into the 48 fixed time slots
+        let blocks = TIME_SLOTS.map(slot => {
+            const slotSessions = sessions.filter(
+                cls => cls.startMinutes >= slot.startMinutes && cls.startMinutes < slot.endMinutes
+            ).sort((a, b) => (a.student?.full_name || "").localeCompare(b.student?.full_name || ""));
+
+            return {
+                time: slot.timeStr,
+                startMinutes: slot.startMinutes,
+                endMinutes: slot.endMinutes,
+                sessions: slotSessions
+            };
         });
 
-        // 3. Convert to Array, Sort by Time, and apply Time Filter
-        return Object.entries(groups).map(([time, sessions]) => ({
-            time,
-            startMinutes: sessions[0].startMinutes,
-            sessions: sessions.sort((a, b) => a.student?.full_name.localeCompare(b.student?.full_name || ""))
-        }))
-        .filter(block => selectedTime === "All" || block.time === selectedTime)
-        .sort((a, b) => a.startMinutes - b.startMinutes);
+        // 3. Optional Time Filter
+        if (selectedTime !== "All") {
+            blocks = blocks.filter(block => block.time === selectedTime);
+        }
+
+        return blocks;
     }, [allClasses, teachers, supervisors, selectedDay, selectedSupervisorId, selectedTeacherId, selectedTime]);
 
     // Extract all unique normalized times for the filter dropdown
@@ -218,7 +241,7 @@ export default function TimetablePage() {
     // ─── SCROLL TO RELEVANT BLOCK ───
     const currentBlockIdx = useMemo(() => {
         return timeBlocks.findIndex(block => {
-            return block.sessions.some(cls => nowMinutes >= cls.startMinutes && nowMinutes < cls.endMinutes);
+            return nowMinutes >= block.startMinutes && nowMinutes < block.endMinutes;
         });
     }, [timeBlocks, nowMinutes]);
 
@@ -272,15 +295,6 @@ export default function TimetablePage() {
                         <div>
                             <p className="text-[9px] font-bold text-muted-foreground uppercase">{selectedDay}</p>
                             <p className="text-lg font-black leading-none">{allClasses.length}</p>
-                        </div>
-                    </div>
-                    <div className="p-4 rounded-3xl bg-card border border-border flex items-center gap-3 min-w-[180px] shadow-sm">
-                        <div className="size-8 rounded-xl bg-blue-500/10 flex items-center justify-center text-blue-500">
-                            <Clock className="size-4" />
-                        </div>
-                        <div>
-                            <p className="text-[9px] font-bold text-muted-foreground uppercase">Base Time</p>
-                            <p className="text-lg font-black leading-none">{gridTimezone === "pk" ? "🇵🇰 PKT" : "🇬🇧 UKT"}</p>
                         </div>
                     </div>
                 </div>
@@ -355,13 +369,6 @@ export default function TimetablePage() {
 
                 <div className="flex items-center gap-4 w-full xl:w-auto">
                     <button 
-                        onClick={() => setGridTimezone(gridTimezone === "pk" ? "uk" : "pk")}
-                        className="flex-1 xl:flex-none h-10 px-6 rounded-2xl bg-card border-2 border-border hover:border-primary/30 transition-all font-black text-[9px] uppercase tracking-widest flex items-center gap-3 active:scale-95 shadow-sm"
-                    >
-                        <ArrowRightLeft className="size-3 text-primary" />
-                        {gridTimezone === "pk" ? "🇵🇰 PKT" : "🇬🇧 UKT"}
-                    </button>
-                    <button 
                         onClick={() => { 
                             setSelectedSupervisorId(isSupervisor && authSupervisorId ? authSupervisorId : "All"); 
                             setSelectedTeacherId("All"); 
@@ -374,8 +381,8 @@ export default function TimetablePage() {
                 </div>
             </div>
 
-            {/* ── THE HOUR-BLOCK GRID ── */}
-            <main className="space-y-12 pb-40">
+            {/* ── THE 24-HOUR GRID ── */}
+            <main className="flex flex-col relative pb-40">
                 {timeBlocks.length === 0 ? (
                     <div className="py-40 flex flex-col items-center justify-center opacity-40">
                         <Calendar className="size-16 mb-6" />
@@ -383,51 +390,60 @@ export default function TimetablePage() {
                     </div>
                 ) : (
                     timeBlocks.map((block, bIdx) => {
-                        const isBlockLive = block.sessions.some(cls => nowMinutes >= cls.startMinutes && nowMinutes < cls.endMinutes);
+                        const isBlockLive = nowMinutes >= block.startMinutes && nowMinutes < block.endMinutes;
                         const isScrollTarget = currentBlockIdx !== -1 ? bIdx === currentBlockIdx : bIdx === nextBlockIdx;
+                        const hasClasses = block.sessions.length > 0;
 
                         return (
                             <div 
                                 key={block.time} 
                                 ref={isScrollTarget ? activeRef : null}
-                                className="group/block flex flex-col lg:flex-row gap-8 lg:gap-16 pt-8 first:pt-0"
+                                className={cn(
+                                    "group/block flex flex-col lg:flex-row gap-4 lg:gap-8 py-4 border-b border-border/40 relative",
+                                    isBlockLive ? "bg-primary/[0.02]" : ""
+                                )}
                             >
                                 {/* Left Time Marker */}
-                                <div className="lg:w-[120px] pt-1 flex items-center lg:items-start lg:flex-col gap-4">
+                                <div className="lg:w-[100px] shrink-0 pt-1 flex items-center lg:items-start lg:flex-col gap-2">
                                     <div className={cn(
-                                        "text-4xl font-black tracking-tighter leading-none shrink-0 transition-all duration-500",
-                                        isBlockLive ? "text-emerald-500 scale-110" : "text-muted-foreground opacity-30 group-hover/block:opacity-100"
+                                        "text-sm font-black tracking-tight shrink-0 transition-all duration-500 flex items-center gap-1",
+                                        isBlockLive ? "text-primary scale-105" : "text-muted-foreground",
+                                        !hasClasses && !isBlockLive && "opacity-50"
                                     )}>
                                         {block.time.split(" ")[0]}
-                                        <span className="text-[12px] block mt-1 opacity-60 font-black">{block.time.split(" ")[1]}</span>
+                                        <span className="text-[10px] block opacity-60 font-black">{block.time.split(" ")[1]}</span>
                                     </div>
                                     {isBlockLive && (
-                                        <div className="px-2 py-0.5 bg-emerald-500 text-white text-[8px] font-black uppercase tracking-widest rounded-md animate-pulse shadow-lg shadow-emerald-500/30">
-                                            Live In-Progress
-                                        </div>
+                                        <div className="hidden lg:block w-3 h-3 rounded-full bg-primary animate-pulse shadow-[0_0_10px_rgba(var(--primary),0.5)] mt-1" />
                                     )}
                                 </div>
 
-                                {/* Right Sessions Grid */}
-                                <div className="flex-1 grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4 gap-4">
-                                    {block.sessions.map((cls) => {
-                                        const isSessionLive = nowMinutes >= cls.startMinutes && nowMinutes < cls.endMinutes;
-                                        const isCompleted = nowMinutes >= cls.endMinutes;
+                                {/* Right Grid / Empty State */}
+                                <div className="flex-1 min-h-[60px]">
+                                    {!hasClasses ? (
+                                        <div className="h-full w-full rounded-2xl border-2 border-dashed border-border/30 flex items-center justify-center opacity-0 group-hover/block:opacity-100 transition-opacity min-h-[60px]">
+                                            <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Open Slot</span>
+                                        </div>
+                                    ) : (
+                                        <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4 gap-4">
+                                            {block.sessions.map((cls) => {
+                                                const isSessionLive = nowMinutes >= cls.startMinutes && nowMinutes < cls.endMinutes;
+                                                const isCompleted = nowMinutes >= cls.endMinutes;
 
-                                        return (
-                                            <button
-                                                key={cls.id}
-                                                onClick={() => { setManageStudentId(cls.student_id); setIsManageOpen(true); }}
-                                                className={cn(
-                                                    "relative p-4 rounded-[24px] border-2 transition-all duration-500 text-left overflow-hidden group/card active:scale-95",
-                                                    isSessionLive 
-                                                        ? "bg-emerald-500/[0.04] border-emerald-500/40 shadow-xl shadow-emerald-500/10" 
-                                                        : isCompleted
-                                                            ? "bg-accent/5 border-border/40 opacity-40 grayscale-[0.5]"
-                                                            : "bg-card border-border hover:border-primary/40 hover:shadow-xl hover:scale-[1.02]"
-                                                )}
-                                            >
-                                                {/* Card Header: Student */}
+                                                return (
+                                                    <button
+                                                        key={cls.id}
+                                                        onClick={() => { setManageStudentId(cls.student_id); setIsManageOpen(true); }}
+                                                        className={cn(
+                                                            "relative p-4 rounded-[24px] border-2 transition-all duration-500 text-left overflow-hidden group/card active:scale-95",
+                                                            isSessionLive 
+                                                                ? "bg-emerald-500/[0.04] border-emerald-500/40 shadow-xl shadow-emerald-500/10" 
+                                                                : isCompleted
+                                                                    ? "bg-accent/5 border-border/40 opacity-40 grayscale-[0.5]"
+                                                                    : "bg-card border-border hover:border-primary/40 hover:shadow-xl hover:scale-[1.02]"
+                                                        )}
+                                                    >
+                                                        {/* Card Header: Student */}
                                                 <div className="space-y-2.5 relative z-10">
                                                     <div className="flex items-start justify-between">
                                                         <h3 className={cn(
@@ -472,7 +488,6 @@ export default function TimetablePage() {
                                                         <span>
                                                             {cls.pak_start_time.split(" ")[0]} — {cls.pak_end_time}
                                                         </span>
-                                                        <span className="ml-auto text-blue-500/40">UK: {cls.uk_start_time.split(" ")[0]}</span>
                                                     </div>
                                                 </div>
 
@@ -483,8 +498,10 @@ export default function TimetablePage() {
                                             </button>
                                         );
                                     })}
-                                </div>
+                                    </div>
+                                )}
                             </div>
+                        </div>
                         );
                     })
                 )}
