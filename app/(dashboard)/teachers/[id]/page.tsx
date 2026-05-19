@@ -169,7 +169,7 @@ export default function TeacherProfilePage() {
         mutationFn: deleteTeacher,
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: ["teachers"] });
-            router.push('/teachers');
+            router.push('/departments?tab=teachers');
         }
     });
 
