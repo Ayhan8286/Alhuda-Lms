@@ -333,7 +333,7 @@ function AddEmployeeDialog({ department, open, onOpenChange }: { department: str
 
     return (
         <Dialog open={open} onOpenChange={onOpenChange}>
-            <DialogContent className="sm:max-w-[480px] rounded-3xl border-white/10 bg-card/95 backdrop-blur-xl">
+            <DialogContent aria-describedby={undefined} className="sm:max-w-[480px] rounded-3xl border-white/10 bg-card/95 backdrop-blur-xl">
                 <DialogHeader className="pb-2">
                     <DialogTitle className="text-xl font-black">Add {department} Member</DialogTitle>
                 </DialogHeader>
@@ -372,7 +372,7 @@ function EditEmployeeDialog({ department, employee, open, onOpenChange }: { depa
     }, [employee, open]);
 
     const updateMutation = useMutation({
-        mutationFn: () => updateSupervisor(employee!.id, formData),
+        mutationFn: () => updateSupervisor(employee!.id, { ...formData, department }),
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: ["staff", department] });
             if (department === "Teacher") {
@@ -386,7 +386,7 @@ function EditEmployeeDialog({ department, employee, open, onOpenChange }: { depa
 
     return (
         <Dialog open={open} onOpenChange={onOpenChange}>
-            <DialogContent className="sm:max-w-[480px] rounded-3xl border-white/10 bg-card/95 backdrop-blur-xl">
+            <DialogContent aria-describedby={undefined} className="sm:max-w-[480px] rounded-3xl border-white/10 bg-card/95 backdrop-blur-xl">
                 <DialogHeader className="pb-2">
                     <DialogTitle className="text-xl font-black">Edit {department} Details</DialogTitle>
                 </DialogHeader>
