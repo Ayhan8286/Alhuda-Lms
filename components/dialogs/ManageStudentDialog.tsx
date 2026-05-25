@@ -96,10 +96,23 @@ export function ManageStudentDialog({ studentId, open, onOpenChange, onSuccess }
         status: "Active",
         shift: "",
         supervisor_id: "",
+        email: "",
+        password: "student123",
     });
 
     useEffect(() => {
         if (student) {
+            const getEmail = (notes?: string | null) => {
+                if (!notes) return "";
+                const match = notes.match(/\[EMAIL:(.*?)\]/);
+                return match ? match[1] : "";
+            };
+            const getPassword = (notes?: string | null) => {
+                if (!notes) return "student123";
+                const match = notes.match(/\[PASSWORD:(.*?)\]/);
+                return match ? match[1] : "student123";
+            };
+
             setProfileForm({
                 full_name: student.full_name || "",
                 reg_no: student.reg_no || "",
@@ -107,6 +120,8 @@ export function ManageStudentDialog({ studentId, open, onOpenChange, onSuccess }
                 status: student.status || "Active",
                 shift: student.shift || "",
                 supervisor_id: student.supervisor_id || "",
+                email: getEmail(student.performance_notes),
+                password: getPassword(student.performance_notes),
             });
         }
     }, [student]);
@@ -125,7 +140,24 @@ export function ManageStudentDialog({ studentId, open, onOpenChange, onSuccess }
     const updateProfileMutation = useMutation({
         mutationFn: async () => {
             if (!studentId) return;
-            return await updateStudent(studentId, profileForm);
+
+            // Extract existing notes, strip old credentials, and inject updated tags
+            let cleanNotes = student?.performance_notes || "";
+            cleanNotes = cleanNotes.replace(/\[EMAIL:.*?\]/g, "").trim();
+            cleanNotes = cleanNotes.replace(/\[PASSWORD:.*?\]/g, "").trim();
+            const updatedNotes = `${cleanNotes} [EMAIL:${profileForm.email}] [PASSWORD:${profileForm.password}]`.trim();
+
+            const updatePayload = {
+                full_name: profileForm.full_name,
+                reg_no: profileForm.reg_no,
+                guardian_name: profileForm.guardian_name,
+                status: profileForm.status,
+                shift: profileForm.shift,
+                supervisor_id: profileForm.supervisor_id || null,
+                performance_notes: updatedNotes,
+            };
+
+            return await updateStudent(studentId, updatePayload as any);
         },
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: ["student", studentId] });
@@ -188,6 +220,20 @@ export function ManageStudentDialog({ studentId, open, onOpenChange, onSuccess }
                                     value={profileForm.reg_no}
                                     onChange={(e) => setProfileForm(f => ({ ...f, reg_no: e.target.value }))}
                                     className="h-10 text-xs font-bold"
+                                />
+                                <FormInput
+                                    label="Student Email"
+                                    value={profileForm.email}
+                                    onChange={(e) => setProfileForm(f => ({ ...f, email: e.target.value }))}
+                                    className="h-10 text-xs font-bold"
+                                    placeholder="student@email.com"
+                                />
+                                <FormInput
+                                    label="Student Password"
+                                    value={profileForm.password}
+                                    onChange={(e) => setProfileForm(f => ({ ...f, password: e.target.value }))}
+                                    className="h-10 text-xs font-bold"
+                                    placeholder="student123"
                                 />
                                 <div className="space-y-1">
                                     <label className="text-[10px] font-bold text-muted-foreground ml-1">Shift</label>

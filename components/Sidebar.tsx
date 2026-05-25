@@ -6,15 +6,20 @@ import { usePathname } from "next/navigation";
 import { cn } from "@/lib/utils";
 import { logoutAction } from "@/app/(auth)/login/actions";
 import { Menu, X } from "lucide-react";
+import { supabase } from "@/lib/supabase";
 
 const navItems = [
     { label: "Dashboard", href: "/", icon: "dashboard" },
     { label: "Departments", href: "/departments/supervisor", icon: "corporate_fare" },
+    { label: "Students", href: "/students", icon: "group" },
     { label: "Time Table", href: "/timetable", icon: "calendar_month" },
     { label: "Attendance", href: "/attendance", icon: "event_available" },
     { label: "Tasks", href: "/tasks", icon: "assignment" },
-    { label: "Daily Reports", href: "/reports", icon: "history_edu" },
+    { label: "Messages", href: "/messages", icon: "chat" },
+    { label: "Reports", href: "/reports", icon: "history_edu" },
     { label: "Complaints", href: "/complaints", icon: "report_problem" },
+    { label: "Payroll", href: "/payroll", icon: "payments" },
+    { label: "Homework", href: "/homework", icon: "menu_book" },
     { label: "Settings", href: "/settings", icon: "settings" },
 ];
 
@@ -22,20 +27,76 @@ export function Sidebar({
     role = "admin", 
     userName = "Admin", 
     supervisorId,
+    currentUserId,
     department = "Supervisor" 
 }: { 
     role?: string, 
     userName?: string, 
     supervisorId?: string,
+    currentUserId?: string,
     department?: string
 }) {
     const pathname = usePathname();
     const [mobileOpen, setMobileOpen] = useState(false);
+    const [hasUnreadMessages, setHasUnreadMessages] = useState(false);
     const deptRole = department.toLowerCase().replace(' ', '-');
 
     useEffect(() => {
         setMobileOpen(false);
     }, [pathname]);
+
+    useEffect(() => {
+        if (!currentUserId) return;
+
+        const checkUnread = async () => {
+            let query = supabase
+                .from('messages')
+                .select('id', { count: 'exact', head: true })
+                .eq('is_read', false);
+
+            if (role === 'admin') {
+                query = query.is('recipient_id', null).neq('sender_role', 'admin');
+            } else {
+                query = query.eq('recipient_id', currentUserId);
+            }
+
+            const { count, error } = await query;
+            if (!error && count !== null) {
+                setHasUnreadMessages(count > 0);
+            }
+        };
+
+        checkUnread();
+
+        // Real-time subscription to new messages
+        const channelId = `sidebar-chat-${Math.random().toString(36).substring(7)}`;
+        const channel = supabase.channel(channelId);
+        
+        channel
+            .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'messages' }, (payload) => {
+                const newMessage = payload.new;
+                
+                // If message is unread and addressed to current user
+                if (newMessage.is_read === false) {
+                    const isForMe = role === 'admin' 
+                        ? (newMessage.recipient_id === null && newMessage.sender_role !== 'admin')
+                        : (newMessage.recipient_id === currentUserId);
+                        
+                    if (isForMe) {
+                        setHasUnreadMessages(true);
+                    }
+                }
+            })
+            .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'messages' }, (payload) => {
+                // If messages are marked as read, recheck
+                checkUnread();
+            })
+            .subscribe();
+
+        return () => {
+            channel.unsubscribe();
+        };
+    }, [currentUserId, role]);
 
     const SidebarContent = () => (
         <>
@@ -57,17 +118,22 @@ export function Sidebar({
                     // Role-based visibility
                     if (role === "supervisor") {
                         if (deptRole === 'supervisor') {
-                            const allowed = ["Dashboard", "Students", "Attendance", "Time Table", "Tasks", "Daily Reports"];
+                            const allowed = ["Dashboard", "Departments", "Students", "Attendance", "Time Table", "Tasks", "Reports", "Homework", "Messages"];
                             if (!allowed.includes(item.label)) return null;
                         } else {
-                            // Specialized departments only see Tasks
-                            const allowed = ["Dashboard", "Tasks"];
+                            // Specialized departments only see Tasks and Messages
+                            const allowed = ["Dashboard", "Tasks", "Messages"];
                             if (!allowed.includes(item.label)) return null;
                         }
                     }
 
                     if (role === "teacher") {
-                        const allowed = ["Dashboard", "Time Table", "Attendance", "Daily Reports", "Students"];
+                        const allowed = ["Dashboard", "Time Table", "Attendance", "Reports", "Students", "Homework", "Messages"];
+                        if (!allowed.includes(item.label)) return null;
+                    }
+
+                    if (role === "student") {
+                        const allowed = ["Dashboard", "Homework", "Messages"];
                         if (!allowed.includes(item.label)) return null;
                     }
 
@@ -78,14 +144,21 @@ export function Sidebar({
                             href = `/departments/${deptRole}/${supervisorId}`;
                         }
                     }
+                    if (role === "supervisor" && item.label === "Departments") {
+                        href = "/departments/teacher";
+                    }
 
-                    const isActive = pathname === href || (href !== "/" && pathname.startsWith(href));
+                    const isActive = pathname === href || 
+                                     (href !== "/" && pathname.startsWith(href)) ||
+                                     (item.label === "Students" && pathname === "/departments/students");
+                    const showDot = item.label === "Messages" && hasUnreadMessages;
+                    
                     return (
                         <Link
                             key={item.label}
                             href={href}
                             className={cn(
-                                "flex items-center space-x-3 px-4 py-3 rounded-full transition-all duration-200",
+                                "flex items-center space-x-3 px-4 py-3 rounded-full transition-all duration-200 relative",
                                 isActive
                                     ? "bg-forest dark:bg-emerald-600 text-white shadow-md scale-100"
                                     : "text-emerald-800/70 dark:text-emerald-200/70 hover:bg-emerald-100 dark:hover:bg-emerald-800/40 hover:scale-[1.02]"
@@ -93,6 +166,9 @@ export function Sidebar({
                         >
                             <span className="material-symbols-outlined shrink-0" data-icon={item.icon}>{item.icon}</span>
                             <span className={cn("font-medium", isActive && "font-semibold")}>{item.label}</span>
+                            {showDot && (
+                                <span className="absolute right-4 top-1/2 -translate-y-1/2 w-2 h-2 bg-red-500 rounded-full border border-white dark:border-slate-900 animate-pulse shadow-md"></span>
+                            )}
                         </Link>
                     );
                 })}
@@ -110,7 +186,7 @@ export function Sidebar({
                             {userName}
                         </p>
                         <p className="text-xs text-emerald-800/60 dark:text-emerald-200/60 truncate capitalize">
-                            {role === "admin" ? "Administrator" : (role === "teacher" ? "Teacher" : `${department} Team`)}
+                            {role === "admin" ? "Administrator" : (role === "teacher" ? "Teacher" : (role === "student" ? "Student" : `${department} Team`))}
                         </p>
                     </div>
                 </div>

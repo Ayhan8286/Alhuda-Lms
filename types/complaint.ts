@@ -11,6 +11,10 @@ export interface Complaint {
     student?: {
         full_name: string;
         reg_no: string;
+        supervisor?: { name: string } | null;
+        classes?: {
+            teacher: { name: string } | null;
+        }[];
     };
     teacher?: {
         name: string;

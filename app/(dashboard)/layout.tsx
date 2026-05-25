@@ -1,6 +1,5 @@
 import { Sidebar } from "@/components/Sidebar";
 import { Prefetcher } from "@/components/Prefetcher";
-import ChatToggle from "@/components/ChatToggle";
 import { cookies } from "next/headers";
 import { supabase } from "@/lib/supabase";
 
@@ -16,6 +15,7 @@ export default async function DashboardLayout({
   let userId: string | undefined = undefined;
   let supervisorId: string | undefined = undefined;
   let teacherId: string | undefined = undefined;
+  let studentId: string | undefined = undefined;
 
   // 1. Initial ID identification from cookies (faster & reliable)
   if (role === "admin") {
@@ -26,6 +26,9 @@ export default async function DashboardLayout({
   } else if (role === "teacher") {
     teacherId = cookieStore.get("teacher_id")?.value;
     userId = teacherId;
+  } else if (role === "student") {
+    studentId = cookieStore.get("student_id")?.value;
+    userId = studentId;
   }
 
   // 2. Fetch extra details from Supabase (optional, but nice for UX)
@@ -80,6 +83,19 @@ export default async function DashboardLayout({
     } catch (e) {
       console.error("Layout: Teacher name fetch failed:", e);
     }
+  } else if (role === "student" && studentId) {
+    try {
+      const { data } = await supabase
+        .from('students')
+        .select('full_name')
+        .eq('id', studentId)
+        .single();
+      if (data && data.full_name) {
+        userName = data.full_name;
+      }
+    } catch (e) {
+      console.error("Layout: Student name fetch failed:", e);
+    }
   }
 
   return (
@@ -91,7 +107,7 @@ export default async function DashboardLayout({
         <div className="absolute top-1/3 right-1/4 w-[400px] h-[400px] rounded-full bg-teal-300/30 dark:bg-teal-400/10 blur-[100px]" />
       </div>
       <Prefetcher />
-      <Sidebar role={role} userName={userName} supervisorId={supervisorId} department={department} />
+      <Sidebar role={role} userName={userName} supervisorId={supervisorId} currentUserId={userId} department={department} />
       <main className="flex-1 overflow-y-auto relative z-10 bg-transparent flex flex-col custom-scrollbar">
         {children}
       </main>

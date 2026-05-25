@@ -8,7 +8,9 @@ export interface DailyReport {
     date: string;
     time: string;
     description: string;
+    report_type?: 'daily' | 'attendance' | 'performance' | 'monthly_class';
     metadata?: {
+        // Daily Report fields
         lessonType?: string;
         surahOrBook?: string;
         ayatOrPageFrom?: string;
@@ -21,6 +23,27 @@ export interface DailyReport {
         attendanceStatus?: string;
         sittingArrangement?: string;
         memorizationLesson?: string;
+
+        // Attendance Report (Monthly)
+        totalClasses?: number;
+        presentDays?: number;
+        absentDays?: number;
+        lateDays?: number;
+        attendancePercentage?: number;
+
+        // Student Performance Report (Monthly)
+        overallGrade?: string;
+        memorizationProgress?: string;
+        behaviorGrade?: string;
+        strengths?: string;
+        weaknesses?: string;
+        nextMonthGoals?: string;
+
+        // Monthly Class Report
+        classGrade?: string;
+        participation?: string;
+        progressSummary?: string;
+        recommendations?: string;
     };
     created_at?: string;
     student?: {
@@ -60,6 +83,7 @@ export async function getDailyReports(filters: {
     supervisorId?: string;
     teacherId?: string;
     studentId?: string;
+    reportType?: string;
 }): Promise<DailyReport[]> {
     let query = supabase
         .from("daily_reports")
@@ -76,6 +100,7 @@ export async function getDailyReports(filters: {
     if (filters.supervisorId) query = query.eq("supervisor_id", filters.supervisorId);
     if (filters.teacherId) query = query.eq("teacher_id", filters.teacherId);
     if (filters.studentId) query = query.eq("student_id", filters.studentId);
+    if (filters.reportType && filters.reportType !== "All") query = query.eq("report_type", filters.reportType);
 
     const { data, error } = await query.order("created_at", { ascending: false });
 

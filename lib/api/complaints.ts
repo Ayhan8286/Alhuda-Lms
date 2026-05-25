@@ -7,7 +7,14 @@ export async function getComplaints(): Promise<Complaint[]> {
         .from("complaints")
         .select(`
             *,
-            student:students(full_name, reg_no),
+            student:students(
+                full_name, 
+                reg_no,
+                supervisor:supervisors(name),
+                classes(
+                    teacher:teachers(name)
+                )
+            ),
             teacher:teachers(name, staff_id)
         `)
         .order("created_at", { ascending: false });

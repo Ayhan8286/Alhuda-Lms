@@ -85,19 +85,37 @@ export async function getDashboardStats(supervisorId?: string, teacherId?: strin
     }
 
     // Now perform the main dashboard queries, applying filters if needed
-    const queries = [];
+    let studentsResult: any;
+    let activeTeachersResult: any;
+    let allTeachersResult: any;
+    let classesResult: any;
+    let activeStudentsResult: any;
+    let shiftResult: any;
+    let classScheduleResult: any;
+    let appAccountsResult: any;
 
     if (supervisorId || teacherId) {
-        // Filtered counts - select minimal fields
-        queries.push(supabase.from("students").select("id", { count: "exact", head: true }).in("id", studentIds));
-        queries.push(supabase.from("teachers").select("id", { count: "exact", head: true }).in("id", teacherIds).eq("is_active", true));
-        queries.push(supabase.from("teachers").select("id", { count: "exact", head: true }).in("id", teacherIds));
-        queries.push(supabase.from("classes").select("id", { count: "exact", head: true }).in("id", classIds));
-        queries.push(supabase.from("students").select("id", { count: "exact", head: true }).in("id", studentIds).ilike("status", "active"));
-        queries.push(supabase.from("students").select("shift").in("id", studentIds));
-        queries.push(supabase.from("classes").select("schedule_days").in("id", classIds));
-        queries.push(Promise.resolve({ data: accountsData }));
+        // Run consolidated parallel queries
+        const [studentsData, teachersData, classesData] = await Promise.all([
+            supabase.from("students").select("id, status, shift").in("id", studentIds),
+            supabase.from("teachers").select("id, is_active").in("id", teacherIds),
+            supabase.from("classes").select("id, schedule_days").in("id", classIds)
+        ]);
+
+        const studentsList = studentsData.data || [];
+        const teachersList = teachersData.data || [];
+        const classesList = classesData.data || [];
+
+        studentsResult = { count: studentsList.length };
+        activeTeachersResult = { count: teachersList.filter(t => t.is_active).length };
+        allTeachersResult = { count: teachersList.length };
+        classesResult = { count: classesList.length };
+        activeStudentsResult = { count: studentsList.filter(s => s.status?.toLowerCase() === 'active').length };
+        shiftResult = { data: studentsList.map(s => ({ shift: s.shift })) };
+        classScheduleResult = { data: classesList };
+        appAccountsResult = { data: accountsData };
     } else {
+        const queries = [];
         // Global counts using optimized view if available
         const { data: summary } = await supabase.from("dashboard_summary").select("*").single();
         if (summary) {
@@ -121,18 +139,17 @@ export async function getDashboardStats(supervisorId?: string, teacherId?: strin
         
         queries.push(supabase.from("classes").select("schedule_days"));
         queries.push(supabase.from("app_accounts").select("platform"));
-    }
 
-    const [
-        studentsResult,
-        activeTeachersResult,
-        allTeachersResult,
-        classesResult,
-        activeStudentsResult,
-        shiftResult,
-        classScheduleResult,
-        appAccountsResult,
-    ] = await Promise.all(queries as any[]);
+        const results = await Promise.all(queries);
+        studentsResult = results[0];
+        activeTeachersResult = results[1];
+        allTeachersResult = results[2];
+        classesResult = results[3];
+        activeStudentsResult = results[4];
+        shiftResult = results[5];
+        classScheduleResult = results[6];
+        appAccountsResult = results[7];
+    }
 
     // Calculate students by shift
     const studentsByShift: Record<string, number> = {};

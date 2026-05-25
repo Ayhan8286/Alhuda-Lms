@@ -10,6 +10,7 @@ import {
   deleteTask as deleteTaskApi 
 } from "@/lib/api/tasks";
 import { getSupervisors } from "@/lib/api/supervisors";
+import { getTeachersBySupervisor } from "@/lib/api/classes";
 import { createNotification } from "@/lib/api/notifications";
 import { Task, TaskStatus, CreateTaskInput, UpdateTaskInput } from "@/types/task";
 import { Supervisor } from "@/types/supervisor";
@@ -18,7 +19,6 @@ import {
   Plus, 
   Filter, 
   Search, 
-  RefreshCw, 
   LayoutDashboard, 
   UserCircle2,
   AlertCircle
@@ -59,11 +59,8 @@ export default function TasksPage() {
     const role = (getCookie("auth_role") as 'admin' | 'supervisor') || "admin";
     const supervisorId = getCookie("supervisor_id");
     // Use the supervisorId if available, or 'admin' for admins (now supported by TEXT column)
-    // Coalesce to empty string or 'unknown' to satisfy TypeScript strictness
     const userId = (role === "supervisor" ? supervisorId : "admin") || "unknown";
     
-    // In a real app, you'd fetch the user's name from context or API
-    // Here we'll just use a placeholder for name if it's not easily available
     setUser({ 
         id: userId, 
         name: role === "admin" ? "Admin" : "Supervisor", 
@@ -75,18 +72,32 @@ export default function TasksPage() {
     setIsLoading(true);
     setHasError(false);
     
+    const role = getCookie("auth_role") || "admin";
+    const supervisorId = getCookie("supervisor_id");
+
     // Fetch supervisors independently so they load even if tasks fail
     try {
-        const sups = await getSupervisors(undefined, true);
-        setSupervisors(sups);
-        
-        // Update user name if we found it in supervisors
-        const role = getCookie("auth_role") || "admin";
-        const supervisorId = getCookie("supervisor_id");
-        if (role === "supervisor" && supervisorId) {
-            const currentSup = sups.find(s => s.id === supervisorId);
+        if (role === "admin") {
+            const sups = await getSupervisors(undefined, true);
+            setSupervisors(sups);
+        } else if (role === "supervisor" && supervisorId) {
+            // For supervisors, fetch only their assigned teachers!
+            const teachers = await getTeachersBySupervisor(supervisorId);
+            const mappedTeachers = teachers.map(t => ({
+                id: t.id,
+                name: t.name,
+                email: t.email,
+                phone: t.phone,
+                department: "Teacher",
+                timing: t.timing || "",
+                password: t.password || ""
+            }));
+            setSupervisors(mappedTeachers as any);
+            
+            // Fetch current supervisor details to update their name in the task board header
+            const { getSupervisorById } = await import("@/lib/api/supervisors");
+            const currentSup = await getSupervisorById(supervisorId);
             if (currentSup) {
-                // Only update if the name is different to avoid infinite loop
                 setUser(prev => {
                     if (prev && prev.name !== currentSup.name) {
                         return { ...prev, name: currentSup.name };
@@ -96,16 +107,14 @@ export default function TasksPage() {
             }
         }
     } catch (error) {
-        console.error("Failed to load supervisors", error);
+        console.error("Failed to load staff list", error);
     }
 
     try {
-      const role = getCookie("auth_role") || "admin";
-      const supervisorId = getCookie("supervisor_id");
-      
       const filters: any = {};
       if (role === "supervisor" && supervisorId) {
         filters.supervisor_id = supervisorId;
+        filters.created_by = supervisorId; // Allows supervisors to see supervisor-created tasks (for teachers)
       } else if (selectedSupervisor !== "all") {
         filters.supervisor_id = selectedSupervisor;
       }
@@ -120,13 +129,14 @@ export default function TasksPage() {
       setIsLoading(false);
     }
   };
+
   useEffect(() => {
     if (user) loadData();
   }, [user, selectedSupervisor]);
 
   const handleAddTask = (status: TaskStatus) => {
-    if (user?.role !== 'admin') {
-        toast.error("Only admins can create tasks");
+    if (user?.role !== 'admin' && user?.role !== 'supervisor') {
+        toast.error("You are not authorized to create tasks");
         return;
     }
     setSelectedTask(null);
@@ -217,21 +227,12 @@ export default function TasksPage() {
           <p className="text-emerald-800/60 dark:text-emerald-200/60 font-medium">
             {user?.role === 'admin' 
               ? "Oversee and assign tasks to department staff" 
-              : "Manage and update your assigned tasks"}
+              : "Manage and assign tasks for your department"}
           </p>
         </div>
 
         <div className="flex flex-wrap items-center gap-3">
-          <Button 
-            onClick={() => loadData()} 
-            variant="outline" 
-            size="icon"
-            className="rounded-xl border-emerald-100 dark:border-emerald-800/40 hover:bg-emerald-100 dark:hover:bg-emerald-800/40"
-          >
-            <RefreshCw className={`w-4 h-4 ${isLoading ? 'animate-spin' : ''}`} />
-          </Button>
-          
-          {user?.role === 'admin' && (
+          {(user?.role === 'admin' || user?.role === 'supervisor') && (
             <Button 
               onClick={() => handleAddTask('todo')}
               className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-xl px-6 shadow-lg shadow-emerald-500/20 transition-all hover:scale-[1.02] active:scale-[0.98]"

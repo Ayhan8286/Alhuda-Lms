@@ -82,10 +82,12 @@ export function middleware(request: NextRequest) {
     const isAllowedPath = 
       pathname === "/login" ||
       pathname === "/tasks" ||
+      pathname.startsWith("/messages") ||
       pathname.startsWith(`/departments/${deptRole}/`) ||
       ((deptRole === 'supervisor' || deptRole === 'tech' || deptRole === 'marketing') && (
         pathname === "/" ||
         pathname === "/departments/teacher" ||
+        pathname === "/departments/students" ||
         pathname === `/supervisors/${supervisorId}` ||
         pathname.startsWith("/students") ||
         pathname.startsWith("/attendance") ||
@@ -113,15 +115,32 @@ export function middleware(request: NextRequest) {
       pathname === "/login" ||
       pathname === "/" ||
       pathname === "/timetable" ||
+      pathname.startsWith("/messages") ||
       pathname.startsWith("/attendance") ||
       pathname === "/reports" ||
+      pathname === "/departments/students" ||
+      pathname.startsWith("/homework") ||
       pathname.startsWith("/teachers/") ||
-      pathname.startsWith("/students/"); // Teachers might need to see student details
+      pathname.startsWith("/students"); // Teachers might need to see student details
 
     if (!isAllowedPath) {
        const teacherRedirect = NextResponse.redirect(new URL("/", request.url));
        response.cookies.getAll().forEach(c => teacherRedirect.cookies.set(c.name, c.value, c));
        return teacherRedirect;
+    }
+  }
+
+  if (roleCookie?.value === "student") {
+    const isAllowedPath = 
+      pathname === "/login" ||
+      pathname === "/" ||
+      pathname.startsWith("/messages") ||
+      pathname.startsWith("/homework");
+
+    if (!isAllowedPath) {
+       const studentRedirect = NextResponse.redirect(new URL("/", request.url));
+       response.cookies.getAll().forEach(c => studentRedirect.cookies.set(c.name, c.value, c));
+       return studentRedirect;
     }
   }
 

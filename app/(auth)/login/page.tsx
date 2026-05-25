@@ -11,7 +11,8 @@ import {
   UserCog, 
   Megaphone, 
   Terminal, 
-  Wallet 
+  Wallet,
+  BookOpen
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -19,13 +20,14 @@ import { cn } from "@/lib/utils";
 const initialState = { error: "" };
 
 export default function LoginPage() {
-  const [roleType, setRoleType] = useState<"admin" | "supervisor" | "marketing" | "finance" | "tech-team" | "teacher">("admin");
+  const [roleType, setRoleType] = useState<"admin" | "supervisor" | "marketing" | "finance" | "tech-team" | "teacher" | "student">("admin");
   const [state, formAction, isPending] = useActionState(loginAction, initialState);
 
   const roles = [
     { id: "admin", label: "Admin", icon: ShieldCheck },
     { id: "supervisor", label: "Supervisor", icon: UserCog },
     { id: "teacher", label: "Teacher", icon: GraduationCap },
+    { id: "student", label: "Student", icon: BookOpen },
     { id: "marketing", label: "Marketing", icon: Megaphone },
     { id: "tech-team", label: "Tech Team", icon: Terminal },
     { id: "finance", label: "Finance", icon: Wallet },
@@ -84,15 +86,17 @@ export default function LoginPage() {
                   <Mail className="h-4 w-4 text-muted-foreground" />
                 </div>
                 <input
-                  type="email"
+                  type={roleType === "student" ? "text" : "email"}
                   name="email"
                   required
                   placeholder={
-                    roleType === "admin" 
-                      ? "alhudanetwork7860@gmail.com" 
-                      : roleType === "teacher" 
-                        ? "name.teacher@email.com" 
-                        : "super@demo.com"
+                    roleType === "student"
+                      ? "student@email.com"
+                      : roleType === "admin" 
+                        ? "alhudanetwork7860@gmail.com" 
+                        : roleType === "teacher" 
+                          ? "name.teacher@email.com" 
+                          : "super@demo.com"
                   }
                   className="w-full bg-slate-50 dark:bg-black/20 border border-slate-200 dark:border-primary/10 rounded-xl py-3 pl-10 pr-4 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary/50 transition-all placeholder:text-muted-foreground"
                 />
@@ -121,7 +125,9 @@ export default function LoginPage() {
                     ? "Alhudanetwrok@" 
                     : roleType === "teacher" 
                       ? "teacher@" 
-                      : "password"
+                      : roleType === "student"
+                        ? "student@"
+                        : "password"
                 }</span>
               </p>
             </div>

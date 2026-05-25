@@ -18,14 +18,38 @@ const slugToDept: Record<string, "Supervisor" | "Marketing" | "Tech Team" | "Fin
     "students": "Students"
 };
 
+const getCookie = (name: string) => {
+  if (typeof document === "undefined") return undefined;
+  const value = `; ${document.cookie}`;
+  const parts = value.split(`; ${name}=`);
+  if (parts.length === 2) return parts.pop()?.split(';').shift();
+  return undefined;
+};
+
 export default function DepartmentPage({ params }: { params: Promise<{ slug: string }> }) {
     const resolvedParams = use(params);
     const router = useRouter();
     const pathname = usePathname();
     const currentSlug = resolvedParams.slug as DepartmentSlug;
     
+    const [role, setRole] = useState("admin");
+
+    useEffect(() => {
+        setRole(getCookie("auth_role") || "admin");
+    }, []);
+
+    const isSupervisor = role === "supervisor";
+
     // Ensure we handle invalid slugs by defaulting or redirecting
-    const activeTab = slugToDept[currentSlug] ? currentSlug : "supervisor";
+    const activeTab = slugToDept[currentSlug] && (!isSupervisor || currentSlug === "teacher" || currentSlug === "students") 
+        ? currentSlug 
+        : (isSupervisor ? "teacher" : "supervisor");
+
+    useEffect(() => {
+        if (role === "supervisor" && currentSlug !== "teacher" && currentSlug !== "students") {
+            router.replace("/departments/teacher");
+        }
+    }, [role, currentSlug, router]);
 
     const handleTabChange = (value: string) => {
         router.push(`/departments/${value}`);
@@ -37,43 +61,51 @@ export default function DepartmentPage({ params }: { params: Promise<{ slug: str
             <div className="organic-blob bg-tertiary-container/10 w-[500px] h-[500px] bottom-0 right-0 fixed blur-[100px]"></div>
 
             <div className="p-4 md:p-8 flex flex-col gap-8 max-w-7xl mx-auto w-full relative z-10">
-                <div>
-                    <h1 className="text-4xl font-black tracking-tighter text-foreground mb-2">
-                        Departments
-                        <span className="text-primary ml-3">✦</span>
-                    </h1>
-                    <p className="text-muted-foreground text-sm font-medium max-w-2xl">
-                        Manage leadership hierarchies and monitor departmental growth across the entire ecosystem.
-                    </p>
-                </div>
+                {role !== "teacher" && (
+                    <div>
+                        <h1 className="text-4xl font-black tracking-tighter text-foreground mb-2">
+                            Departments
+                            <span className="text-primary ml-3">✦</span>
+                        </h1>
+                        <p className="text-muted-foreground text-sm font-medium max-w-2xl">
+                            Manage leadership hierarchies and monitor departmental growth across the entire ecosystem.
+                        </p>
+                    </div>
+                )}
 
                 <Tabs value={activeTab} onValueChange={handleTabChange} className="w-full space-y-8">
-                    <TabsList className="bg-white/5 border border-white/10 p-1.5 rounded-2xl h-auto flex flex-wrap md:flex-nowrap gap-1 backdrop-blur-md">
-                        <TabsTrigger value="supervisor" className="rounded-xl py-3 px-6 data-[state=active]:bg-forest data-[state=active]:text-white transition-all duration-300">
-                            <ShieldCheck className="h-4 w-4 mr-2" />
-                            Supervisors
-                        </TabsTrigger>
-                        <TabsTrigger value="marketing" className="rounded-xl py-3 px-6 data-[state=active]:bg-forest data-[state=active]:text-white transition-all duration-300">
-                            <Megaphone className="h-4 w-4 mr-2" />
-                            Marketing
-                        </TabsTrigger>
-                        <TabsTrigger value="tech-team" className="rounded-xl py-3 px-6 data-[state=active]:bg-forest data-[state=active]:text-white transition-all duration-300">
-                            <Cpu className="h-4 w-4 mr-2" />
-                            Tech Team
-                        </TabsTrigger>
-                        <TabsTrigger value="finance" className="rounded-xl py-3 px-6 data-[state=active]:bg-forest data-[state=active]:text-white transition-all duration-300">
-                            <Banknote className="h-4 w-4 mr-2" />
-                            Finance
-                        </TabsTrigger>
-                        <TabsTrigger value="teacher" className="rounded-xl py-3 px-6 data-[state=active]:bg-forest data-[state=active]:text-white transition-all duration-300">
-                            <GraduationCap className="h-4 w-4 mr-2" />
-                            Teachers
-                        </TabsTrigger>
-                        <TabsTrigger value="students" className="rounded-xl py-3 px-6 data-[state=active]:bg-forest data-[state=active]:text-white transition-all duration-300">
-                            <Users className="h-4 w-4 mr-2" />
-                            Students
-                        </TabsTrigger>
-                    </TabsList>
+                    {role !== "teacher" && (
+                        <TabsList className="bg-white/5 border border-white/10 p-1.5 rounded-2xl h-auto flex flex-wrap md:flex-nowrap gap-1 backdrop-blur-md">
+                            {!isSupervisor && (
+                                <>
+                                    <TabsTrigger value="supervisor" className="rounded-xl py-3 px-6 data-[state=active]:bg-forest data-[state=active]:text-white transition-all duration-300">
+                                        <ShieldCheck className="h-4 w-4 mr-2" />
+                                        Supervisors
+                                    </TabsTrigger>
+                                    <TabsTrigger value="marketing" className="rounded-xl py-3 px-6 data-[state=active]:bg-forest data-[state=active]:text-white transition-all duration-300">
+                                        <Megaphone className="h-4 w-4 mr-2" />
+                                        Marketing
+                                    </TabsTrigger>
+                                    <TabsTrigger value="tech-team" className="rounded-xl py-3 px-6 data-[state=active]:bg-forest data-[state=active]:text-white transition-all duration-300">
+                                        <Cpu className="h-4 w-4 mr-2" />
+                                        Tech Team
+                                    </TabsTrigger>
+                                    <TabsTrigger value="finance" className="rounded-xl py-3 px-6 data-[state=active]:bg-forest data-[state=active]:text-white transition-all duration-300">
+                                        <Banknote className="h-4 w-4 mr-2" />
+                                        Finance
+                                    </TabsTrigger>
+                                </>
+                            )}
+                            <TabsTrigger value="teacher" className="rounded-xl py-3 px-6 data-[state=active]:bg-forest data-[state=active]:text-white transition-all duration-300">
+                                <GraduationCap className="h-4 w-4 mr-2" />
+                                {isSupervisor ? "Assigned Teachers" : "Teachers"}
+                            </TabsTrigger>
+                            <TabsTrigger value="students" className="rounded-xl py-3 px-6 data-[state=active]:bg-forest data-[state=active]:text-white transition-all duration-300">
+                                <Users className="h-4 w-4 mr-2" />
+                                {isSupervisor ? "Assigned Students" : "Students"}
+                            </TabsTrigger>
+                        </TabsList>
+                    )}
 
                     <div className="mt-8">
                         {activeTab === "students" ? (

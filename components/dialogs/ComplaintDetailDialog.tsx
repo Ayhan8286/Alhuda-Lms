@@ -82,13 +82,29 @@ export function ComplaintDetailDialog({ complaint, open, onOpenChange, onDelete 
                             <h4 className="text-[11px] uppercase tracking-[0.2em] font-black text-muted-foreground flex items-center gap-2">
                                 <User className="h-3.5 w-3.5" /> Reporter (Student)
                             </h4>
-                            <div className="bg-accent/20 rounded-2xl p-4 border border-border/50 flex items-center gap-3">
-                                <div className="h-10 w-10 rounded-full bg-primary/20 flex items-center justify-center text-sm font-black text-primary border border-primary/20 shrink-0">
-                                    {complaint.student?.full_name?.charAt(0) || 'S'}
+                            <div className="bg-accent/20 rounded-2xl p-4 border border-border/50 flex flex-col gap-3">
+                                <div className="flex items-center gap-3">
+                                    <div className="h-10 w-10 rounded-full bg-primary/20 flex items-center justify-center text-sm font-black text-primary border border-primary/20 shrink-0">
+                                        {complaint.student?.full_name?.charAt(0) || 'S'}
+                                    </div>
+                                    <div className="min-w-0">
+                                        <p className="text-sm font-bold text-foreground truncate">{complaint.student?.full_name}</p>
+                                        <p className="text-xs text-muted-foreground font-mono truncate">{complaint.student?.reg_no}</p>
+                                    </div>
                                 </div>
-                                <div className="min-w-0">
-                                    <p className="text-sm font-bold text-foreground truncate">{complaint.student?.full_name}</p>
-                                    <p className="text-xs text-muted-foreground font-mono truncate">{complaint.student?.reg_no}</p>
+                                <div className="grid grid-cols-2 gap-2 pt-3 border-t border-border/40 text-[10px] font-semibold text-muted-foreground">
+                                    <div className="min-w-0">
+                                        <span className="text-[9px] uppercase tracking-wider block opacity-60">Supervisor</span>
+                                        <span className="text-foreground font-bold block truncate" title={complaint.student?.supervisor?.name || "Not Assigned"}>
+                                            {complaint.student?.supervisor?.name || "Not Assigned"}
+                                        </span>
+                                    </div>
+                                    <div className="min-w-0">
+                                        <span className="text-[9px] uppercase tracking-wider block opacity-60">Teacher</span>
+                                        <span className="text-foreground font-bold block truncate" title={complaint.student?.classes?.map(c => c.teacher?.name).filter(Boolean).filter((value, index, self) => self.indexOf(value) === index).join(", ") || "Not Assigned"}>
+                                            {complaint.student?.classes?.map(c => c.teacher?.name).filter(Boolean).filter((value, index, self) => self.indexOf(value) === index).join(", ") || "Not Assigned"}
+                                        </span>
+                                    </div>
                                 </div>
                             </div>
                         </div>

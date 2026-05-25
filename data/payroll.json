@@ -1,0 +1,19 @@
+[
+  {
+    "id": "pay-bbaeff10-73f1-4392-894d-ecd98271cdd0-2026-05",
+    "staff_id": "bbaeff10-73f1-4392-894d-ecd98271cdd0",
+    "staff_name": "eman",
+    "staff_email": "eman.tech@email.com",
+    "role": "Supervisor",
+    "department": "Tech Team",
+    "month": "2026-05",
+    "base_salary": 15000,
+    "bonus": 0,
+    "deductions": 0,
+    "net_payable": 15000,
+    "status": "Pending",
+    "payment_date": null,
+    "payment_method": null,
+    "remarks": null
+  }
+]

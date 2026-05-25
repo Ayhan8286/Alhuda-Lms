@@ -16,17 +16,26 @@ export interface SystemNotification {
 export async function getNotifications(userId?: string, role: string = 'admin'): Promise<SystemNotification[]> {
     let query = supabase
         .from("system_notifications")
-        .select("*")
-        .order("created_at", { ascending: false })
-        .limit(20);
+        .select("*");
 
-    if (role === 'supervisor' && userId) {
-        // Supervisor sees notifications specifically for them
-        query = query.eq("recipient_id", userId);
-    } else if (role === 'admin') {
-        // Admin sees all notifications (including broadcast)
-        // Note: For now, we fetch all for admin.
+    const isStaff = role !== 'student' && role !== 'teacher';
+
+    if (userId) {
+        if (isStaff) {
+            query = query.or(`recipient_id.eq.${userId},recipient_id.is.null`);
+        } else {
+            query = query.eq("recipient_id", userId);
+        }
+    } else {
+        if (isStaff) {
+            query = query.is("recipient_id", null);
+        } else {
+            // Non-staff should never query empty recipient_id broadcast alerts
+            query = query.eq("recipient_id", "00000000-0000-0000-0000-000000000000"); 
+        }
     }
+
+    query = query.order("created_at", { ascending: false }).limit(20);
 
     const { data, error } = await query;
 
@@ -76,8 +85,20 @@ export async function markAllAsRead(userId?: string, role: string = 'admin') {
         .update({ is_read: true })
         .eq("is_read", false);
 
-    if (role === 'supervisor' && userId) {
-        query = query.eq("recipient_id", userId);
+    const isStaff = role !== 'student' && role !== 'teacher';
+
+    if (userId) {
+        if (isStaff) {
+            query = query.or(`recipient_id.eq.${userId},recipient_id.is.null`);
+        } else {
+            query = query.eq("recipient_id", userId);
+        }
+    } else {
+        if (isStaff) {
+            query = query.is("recipient_id", null);
+        } else {
+            query = query.eq("recipient_id", "00000000-0000-0000-0000-000000000000");
+        }
     }
 
     const { error } = await query;
@@ -92,6 +113,8 @@ export function subscribeToNotifications(userId: string | undefined, role: strin
     // Unique channel per user/role subscription
     const channelId = `notifications-${role}-${userId || 'broadcast'}`;
     
+    const isStaff = role !== 'student' && role !== 'teacher';
+
     return supabase
         .channel(channelId)
         .on(
@@ -105,10 +128,11 @@ export function subscribeToNotifications(userId: string | undefined, role: strin
                 const newNotif = payload.new as SystemNotification;
                 
                 // Filtering logic for the client-side subscription
-                const isAdmin = role === 'admin';
-                const isToMe = newNotif.recipient_id === userId || !newNotif.recipient_id;
+                const isToMe = isStaff 
+                    ? (newNotif.recipient_id === userId || !newNotif.recipient_id)
+                    : (newNotif.recipient_id === userId);
 
-                if (isAdmin || isToMe) {
+                if (isToMe) {
                     onNew(newNotif);
                 }
             }

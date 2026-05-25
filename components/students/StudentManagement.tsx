@@ -42,7 +42,7 @@ export function StudentManagement() {
         setPage(1);
     }, [debouncedSearch, statusFilter, shiftFilter]);
 
-    const role = typeof document !== 'undefined' ? document.cookie.split("; ").find(c => c.trim().startsWith("auth_role="))?.split("=")[1] : "admin";
+    const role = typeof document !== 'undefined' ? document.cookie.split(';').map(c => c.trim()).find(c => c.startsWith("auth_role="))?.split("=")[1] : "admin";
     const isSupervisor = role === "supervisor";
     const isTeacher = role === "teacher";
 
@@ -55,10 +55,10 @@ export function StudentManagement() {
     const { data, isLoading, error, refetch } = useQuery({
         queryKey: ["students", debouncedSearch, statusFilter, shiftFilter, page],
         queryFn: async () => {
-            const cookies = document.cookie.split("; ");
-            const role = cookies.find(c => c.trim().startsWith("auth_role="))?.split("=")[1];
-            const supervisorId = cookies.find(c => c.trim().startsWith("supervisor_id="))?.split("=")[1];
-            const teacherId = cookies.find(c => c.trim().startsWith("teacher_id="))?.split("=")[1];
+            const cookies = document.cookie.split(';').map(c => c.trim());
+            const role = cookies.find(c => c.startsWith("auth_role="))?.split("=")[1];
+            const supervisorId = cookies.find(c => c.startsWith("supervisor_id="))?.split("=")[1];
+            const teacherId = cookies.find(c => c.startsWith("teacher_id="))?.split("=")[1];
 
             return await getStudents({
                 page,
@@ -270,7 +270,14 @@ export function StudentManagement() {
                                             <td className="px-6 py-4 text-right">
                                                 <div className="flex items-center justify-end gap-1">
                                                     {!isSupervisor && !isTeacher && (
-                                                        <button onClick={() => handleDelete(student.id, student.full_name)} className="p-2 text-slate-400 hover:text-red-500 transition-colors"><Trash2 className="h-4 w-4" /></button>
+                                                        <>
+                                                            <button onClick={() => handleEditClick(student)} className="p-2 text-slate-400 hover:text-primary transition-colors" title="Manage Student">
+                                                                <Edit2 className="h-4 w-4" />
+                                                            </button>
+                                                            <button onClick={() => handleDelete(student.id, student.full_name)} className="p-2 text-slate-400 hover:text-red-500 transition-colors" title="Delete Student">
+                                                                <Trash2 className="h-4 w-4" />
+                                                            </button>
+                                                        </>
                                                     )}
                                                 </div>
                                             </td>

@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { getSupervisors, addSupervisor, updateSupervisor, deleteSupervisor } from "@/lib/api/supervisors";
-import { getSupervisorStats, getTeacherStats } from "@/lib/api/classes";
+import { getSupervisorStats, getTeacherStats, getTeachersBySupervisor } from "@/lib/api/classes";
 import { Supervisor } from "@/types/supervisor";
 import {
     Dialog,
@@ -66,6 +66,23 @@ export function DepartmentManagement({ department }: DepartmentManagementProps) 
     const [selectedEmployee, setSelectedEmployee] = useState<Supervisor | null>(null);
     const queryClient = useQueryClient();
 
+    const [role, setRole] = useState("admin");
+    const [supervisorId, setSupervisorId] = useState("");
+
+    useEffect(() => {
+        const getCookie = (name: string) => {
+            if (typeof document === "undefined") return undefined;
+            const value = `; ${document.cookie}`;
+            const parts = value.split(`; ${name}=`);
+            if (parts.length === 2) return parts.pop()?.split(';').shift();
+            return undefined;
+        };
+        setRole(getCookie("auth_role") || "admin");
+        setSupervisorId(getCookie("supervisor_id") || "");
+    }, []);
+
+    const isSupervisor = role === "supervisor";
+
     const Icon = departmentIcons[department];
     const colorClass = departmentColors[department];
 
@@ -96,8 +113,20 @@ export function DepartmentManagement({ department }: DepartmentManagementProps) 
     };
 
     const { data: staff = [], isLoading } = useQuery({
-        queryKey: ["staff", department],
+        queryKey: ["staff", department, role, supervisorId],
         queryFn: async () => {
+            if (department === "Teacher" && role === "supervisor" && supervisorId) {
+                const teachers = await getTeachersBySupervisor(supervisorId);
+                return teachers.map(t => ({
+                    id: t.id,
+                    name: t.name,
+                    email: t.email,
+                    phone: t.phone,
+                    timing: t.timing,
+                    password: t.password,
+                    department: "Teacher"
+                }));
+            }
             return await getSupervisors(department);
         },
         ...STALE_LONG,
@@ -136,15 +165,17 @@ export function DepartmentManagement({ department }: DepartmentManagementProps) 
                             : `Manage ${department.toLowerCase()} personnel and dashboard access.`}
                     </p>
                 </div>
-                <div className="flex gap-3">
-                    <button
-                        onClick={() => setIsAddDialogOpen(true)}
-                        className="flex items-center gap-2 px-6 py-3 bg-forest hover:bg-forest/90 text-white font-black rounded-full text-sm shadow-xl transition-all shrink-0"
-                    >
-                        <Plus className="h-4 w-4" />
-                        Add Member
-                    </button>
-                </div>
+                {!isSupervisor && (
+                    <div className="flex gap-3">
+                        <button
+                            onClick={() => setIsAddDialogOpen(true)}
+                            className="flex items-center gap-2 px-6 py-3 bg-forest hover:bg-forest/90 text-white font-black rounded-full text-sm shadow-xl transition-all shrink-0"
+                        >
+                            <Plus className="h-4 w-4" />
+                            Add Member
+                        </button>
+                    </div>
+                )}
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -195,12 +226,14 @@ export function DepartmentManagement({ department }: DepartmentManagementProps) 
                                             alt={employee.name}
                                             src={avatar}
                                         />
-                                        <button
-                                            onClick={() => handleDelete(employee.id, employee.name)}
-                                            className="p-1.5 text-muted-foreground hover:text-red-500 transition-colors rounded-xl hover:bg-red-500/10"
-                                        >
-                                            <Trash2 className="h-4 w-4" />
-                                        </button>
+                                        {!isSupervisor && (
+                                            <button
+                                                onClick={() => handleDelete(employee.id, employee.name)}
+                                                className="p-1.5 text-muted-foreground hover:text-red-500 transition-colors rounded-xl hover:bg-red-500/10"
+                                            >
+                                                <Trash2 className="h-4 w-4" />
+                                            </button>
+                                        )}
                                     </div>
                                     <div>
                                         <h4 className="text-lg font-black text-foreground mb-1">{employee.name}</h4>
@@ -266,19 +299,21 @@ export function DepartmentManagement({ department }: DepartmentManagementProps) 
                                             Students
                                         </Link>
                                     )}
-                                    <div className="w-full">
-                                        <button
-                                            onClick={(e) => {
-                                                e.preventDefault();
-                                                e.stopPropagation();
-                                                handleEditClick(employee);
-                                            }}
-                                            className="w-full py-2.5 rounded-full text-sm font-bold border border-white/10 text-foreground hover:border-primary/30 hover:bg-primary/5 transition-all flex items-center justify-center gap-2"
-                                        >
-                                            <Edit2 className="h-3.5 w-3.5" />
-                                            Edit
-                                        </button>
-                                    </div>
+                                    {!isSupervisor && (
+                                        <div className="w-full">
+                                            <button
+                                                onClick={(e) => {
+                                                    e.preventDefault();
+                                                    e.stopPropagation();
+                                                    handleEditClick(employee as any);
+                                                }}
+                                                className="w-full py-2.5 rounded-full text-sm font-bold border border-white/10 text-foreground hover:border-primary/30 hover:bg-primary/5 transition-all flex items-center justify-center gap-2"
+                                            >
+                                                <Edit2 className="h-3.5 w-3.5" />
+                                                Edit
+                                            </button>
+                                        </div>
+                                    )}
                                 </div>
                             </div>
                         );

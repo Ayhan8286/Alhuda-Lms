@@ -64,6 +64,8 @@ export function AddStudentDialog({ open, onOpenChange, onSuccess, defaultTeacher
         status: "Active",
         shift: "",
         supervisor_id: "",
+        email: "",
+        password: "student123",
     });
 
     const [classFormData, setClassFormData] = useState({
@@ -94,10 +96,18 @@ export function AddStudentDialog({ open, onOpenChange, onSuccess, defaultTeacher
     // Mutation
     const addMutation = useMutation({
         mutationFn: async () => {
+            // Bundle email and password tags inside performance_notes column
+            const credentialsNotes = `[EMAIL:${formData.email}] [PASSWORD:${formData.password}]`.trim();
+            
             // 1. Create Student
             const studentPayload = {
-                ...formData,
+                full_name: formData.full_name,
+                reg_no: formData.reg_no,
+                guardian_name: formData.guardian_name,
+                status: formData.status,
+                shift: formData.shift,
                 supervisor_id: formData.supervisor_id || null, // Fix UUID error
+                performance_notes: credentialsNotes,
                 guardian_id: null,
                 shift_id: null,
             };
@@ -136,6 +146,8 @@ export function AddStudentDialog({ open, onOpenChange, onSuccess, defaultTeacher
             status: "Active",
             shift: "",
             supervisor_id: "",
+            email: "",
+            password: "student123",
         });
         setClassFormData({
             teacher_id: defaultTeacherId || "",
@@ -210,6 +222,24 @@ export function AddStudentDialog({ open, onOpenChange, onSuccess, defaultTeacher
                             required
                             placeholder="e.g. Ali Khan"
                         />
+                        <div className="grid grid-cols-2 gap-3">
+                            <FormInput
+                                label="Student Email"
+                                name="email"
+                                type="email"
+                                value={formData.email}
+                                onChange={handleInputChange}
+                                placeholder="e.g. student@email.com"
+                            />
+                            <FormInput
+                                label="Student Password"
+                                name="password"
+                                type="text"
+                                value={formData.password}
+                                onChange={handleInputChange}
+                                placeholder="e.g. student123"
+                            />
+                        </div>
                     </div>
 
                     {/* Assignment */}

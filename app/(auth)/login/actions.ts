@@ -14,7 +14,7 @@ export async function loginAction(prevState: any, formData: FormData) {
   const rawEmail = formData.get("email") as string;
   const email = rawEmail?.trim().toLowerCase();
   const password = formData.get("password") as string;
-  const roleType = formData.get("roleType") as "admin" | "supervisor" | "marketing" | "finance" | "tech-team" | "teacher";
+  const roleType = formData.get("roleType") as "admin" | "supervisor" | "marketing" | "finance" | "tech-team" | "teacher" | "student";
 
   if (!email || !password || !roleType) {
     return { error: "Please provide all required fields." };
@@ -23,7 +23,6 @@ export async function loginAction(prevState: any, formData: FormData) {
   const cookieStore = await cookies();
 
   if (roleType === "admin") {
-    // ... (existing admin logic)
     const { data, error } = await supabase.auth.signInWithPassword({
       email,
       password,
@@ -108,6 +107,76 @@ export async function loginAction(prevState: any, formData: FormData) {
 
     revalidatePath("/", "layout");
     redirect("/");
+  } else if (roleType === "student") {
+    let student = null;
+
+    // 1. If entered identifier is an email address, search by custom email tag in performance_notes
+    if (email.includes("@")) {
+      const { data: allStudents } = await supabaseAdmin
+        .from("students")
+        .select("id, full_name, reg_no, performance_notes");
+
+      student = allStudents?.find(s => {
+        const notes = s.performance_notes;
+        if (!notes) return false;
+        const match = notes.match(/\[EMAIL:(.*?)\]/i);
+        return match && match[1].toLowerCase() === email;
+      }) || null;
+    }
+
+    // 2. Fall back to search by Registration Number
+    if (!student) {
+      const { data: byReg, error: regError } = await supabaseAdmin
+        .from("students")
+        .select("id, full_name, reg_no, performance_notes")
+        .ilike("reg_no", email)
+        .maybeSingle();
+      
+      if (!regError && byReg) {
+        student = byReg;
+      }
+    }
+
+    if (!student) {
+      return { error: "Invalid login credentials for Student." };
+    }
+
+    // Extract student password from performance_notes fallback strategy
+    const getStudentPassword = (notes?: string | null) => {
+      if (!notes) return "student123";
+      const match = notes.match(/\[PASSWORD:(.*?)\]/);
+      return match ? match[1] : "student123";
+    };
+
+    const studentPassword = getStudentPassword(student.performance_notes);
+    if (studentPassword !== password) {
+      return { error: "Invalid login credentials for Student." };
+    }
+
+    // Set Student Auth cookies
+    cookieStore.set("auth_role", "student", {
+      httpOnly: false,
+      secure: process.env.NODE_ENV === "production",
+      maxAge: 60 * 60 * 24 * 7,
+      path: "/",
+    });
+
+    cookieStore.set("student_id", student.id, {
+      httpOnly: false,
+      secure: process.env.NODE_ENV === "production",
+      maxAge: 60 * 60 * 24 * 7,
+      path: "/",
+    });
+
+    cookieStore.set("dept_role", "Student", {
+      httpOnly: false,
+      secure: process.env.NODE_ENV === "production",
+      maxAge: 60 * 60 * 24 * 7,
+      path: "/",
+    });
+
+    revalidatePath("/", "layout");
+    redirect("/");
   } else {
     // Supervisor/Staff login uses Database Table lookup
     const { data: staff, error } = await supabaseAdmin
@@ -166,6 +235,7 @@ export async function logoutAction() {
   cookieStore.delete("supabase_access_token");
   cookieStore.delete("supervisor_id");
   cookieStore.delete("teacher_id");
+  cookieStore.delete("student_id");
   cookieStore.delete("admin_id");
   cookieStore.delete("dept_role");
   await supabase.auth.signOut();

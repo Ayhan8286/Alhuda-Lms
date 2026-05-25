@@ -2,13 +2,15 @@ import { supabase } from "@/lib/supabase";
 import { Task, TaskComment, CreateTaskInput, UpdateTaskInput } from "@/types/task";
 import { createNotification } from "./notifications";
 
-export async function getTasks(filters?: { supervisor_id?: string; status?: string }): Promise<Task[]> {
+export async function getTasks(filters?: { supervisor_id?: string; status?: string; created_by?: string }): Promise<Task[]> {
     let query = supabase
         .from("tasks")
         .select("*")
         .order("created_at", { ascending: false });
 
-    if (filters?.supervisor_id) {
+    if (filters?.supervisor_id && filters?.created_by) {
+        query = query.or(`supervisor_id.eq.${filters.supervisor_id},created_by.eq.${filters.created_by}`);
+    } else if (filters?.supervisor_id) {
         query = query.eq("supervisor_id", filters.supervisor_id);
     }
     
@@ -54,13 +56,13 @@ export async function createTask(input: CreateTaskInput): Promise<Task> {
         throw error;
     }
 
-    // Notify Supervisor if assigned
+    // Notify Assignee if assigned
     if (data.supervisor_id) {
         try {
             await createNotification({
                 type: 'INFO',
                 title: 'New Task Assigned',
-                message: `Admin assigned you a new task: ${data.title}`,
+                message: `A new task has been assigned to you: ${data.title}`,
                 recipient_id: data.supervisor_id,
                 link: '/tasks'
             });

@@ -68,7 +68,7 @@ function AttendanceRecordsContent() {
 
     const allRecords = allRecordsRaw.filter((r) => {
         let matchesRole = true;
-        
+
         if (role === "teacher" && teacherId) {
             const studentClasses = (r.student as any)?.classes || [];
             matchesRole = studentClasses.some((c: any) => {
@@ -78,7 +78,7 @@ function AttendanceRecordsContent() {
         } else if (role === "supervisor" && supervisorId) {
             const sId = r.student?.supervisor_id;
             const sObj = r.student?.supervisor as any;
-            
+
             if (sId === supervisorId || sObj?.id === supervisorId) {
                 matchesRole = true;
             } else {
@@ -90,7 +90,7 @@ function AttendanceRecordsContent() {
                 });
             }
         }
-        
+
         return matchesRole;
     });
 
@@ -254,7 +254,7 @@ function AttendanceRecordsContent() {
                             Supervisor Breakdown
                         </h3>
                         {supervisorFilter && (
-                            <button 
+                            <button
                                 onClick={() => setSupervisorFilter(null)}
                                 className="text-xs font-bold text-primary hover:underline flex items-center gap-1"
                             >
@@ -264,13 +264,13 @@ function AttendanceRecordsContent() {
                     </div>
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                         {Object.entries(supervisorBreakdown).map(([name, stats]) => (
-                            <button 
-                                key={name} 
+                            <button
+                                key={name}
                                 onClick={() => setSupervisorFilter(supervisorFilter === name ? null : name)}
                                 className={cn(
                                     "rounded-2xl p-4 border transition-all flex flex-col gap-3 text-left w-full group",
-                                    supervisorFilter === name 
-                                        ? "bg-primary/5 border-primary shadow-[0_0_20px_rgba(var(--primary),0.05)]" 
+                                    supervisorFilter === name
+                                        ? "bg-primary/5 border-primary shadow-[0_0_20px_rgba(var(--primary),0.05)]"
                                         : "bg-accent/20 border-border hover:border-primary/30"
                                 )}
                             >
