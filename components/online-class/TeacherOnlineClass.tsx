@@ -96,6 +96,28 @@ function groupSessionsByDate(sessions: OnlineSession[]): Record<string, OnlineSe
     return groups;
 }
 
+function getNextClassDate(scheduleDays?: Record<string, string> | null): string {
+    if (!scheduleDays || typeof scheduleDays !== "object") {
+        return getPakistanDate();
+    }
+    const daysOfWeek = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
+    
+    // Get current date in Pakistan
+    const pkDateStr = new Date().toLocaleDateString("en-US", { timeZone: "Asia/Karachi" });
+    const pkDate = new Date(pkDateStr);
+    
+    for (let i = 0; i < 7; i++) {
+        const checkDate = new Date(pkDate);
+        checkDate.setDate(pkDate.getDate() + i);
+        
+        const dayName = daysOfWeek[checkDate.getDay()];
+        if (scheduleDays[dayName] === "Class") {
+            return checkDate.toLocaleDateString("en-CA", { timeZone: "Asia/Karachi" });
+        }
+    }
+    return getPakistanDate();
+}
+
 // ─── Main Component ─────────────────────────────────────────────
 
 export function TeacherOnlineClass({ teacherId }: { teacherId: string }) {
@@ -432,6 +454,7 @@ export function TeacherOnlineClass({ teacherId }: { teacherId: string }) {
                 teacherId={teacherId}
                 meetLink={meetLink || ""}
                 students={uniqueStudents}
+                teacherClasses={teacherClasses}
             />
         </div>
     );
@@ -594,12 +617,14 @@ function NewSessionDialog({
     teacherId,
     meetLink,
     students,
+    teacherClasses,
 }: {
     open: boolean;
     onOpenChange: (open: boolean) => void;
     teacherId: string;
     meetLink: string;
     students: { id: string; full_name: string; reg_no: string }[];
+    teacherClasses: any[];
 }) {
     const queryClient = useQueryClient();
     const [studentId, setStudentId] = useState("");
@@ -632,15 +657,30 @@ function NewSessionDialog({
         resetForm();
     }, [open]);
 
-    // Auto-generate title when student is selected
+    // Auto-generate title and auto-fill date/time when student is selected
     useEffect(() => {
         if (studentId) {
             const student = students.find((s) => s.id === studentId);
             if (student) {
                 setTitle(`Session — ${student.full_name}`);
             }
+
+            // Find the class schedule for this student
+            const studentClass = teacherClasses.find((c) => c.student_id === studentId);
+            if (studentClass) {
+                // 1. Auto-fill scheduled time
+                if (studentClass.pak_start_time) {
+                    setScheduledTime(studentClass.pak_start_time);
+                }
+
+                // 2. Auto-fill next scheduled date based on schedule_days
+                if (studentClass.schedule_days) {
+                    const nextDate = getNextClassDate(studentClass.schedule_days);
+                    setScheduledDate(nextDate);
+                }
+            }
         }
-    }, [studentId, students]);
+    }, [studentId, students, teacherClasses]);
 
     const handleSubmit = (e: React.FormEvent) => {
         e.preventDefault();
