@@ -754,6 +754,17 @@ function NewSessionDialog({
     const [durationMins, setDurationMins] = useState("30");
     const [title, setTitle] = useState("");
 
+    const timeOptions = useMemo(() => {
+        const options: string[] = [];
+        for (let h = 0; h < 24; h++) {
+            const hour12 = h % 12 === 0 ? 12 : h % 12;
+            const period = h < 12 ? "AM" : "PM";
+            options.push(`${hour12}:00 ${period}`);
+            options.push(`${hour12}:30 ${period}`);
+        }
+        return options;
+    }, []);
+
     const createMutation = useMutation({
         mutationFn: createSession,
         onSuccess: () => {
@@ -872,14 +883,24 @@ function NewSessionDialog({
                                 required
                             />
                         </div>
-                        <FormInput
-                            label="Time (PKT) *"
-                            name="time"
-                            value={scheduledTime}
-                            onChange={(e) => setScheduledTime(e.target.value)}
-                            placeholder="e.g. 3:00 PM"
-                            required
-                        />
+                        <div className="space-y-1.5">
+                            <label className="text-xs font-bold text-muted-foreground ml-1">
+                                Time (PKT) *
+                            </label>
+                            <Select value={scheduledTime} onValueChange={setScheduledTime}>
+                                <SelectTrigger className="rounded-2xl border-border h-11">
+                                    <Clock className="size-4 mr-2 text-muted-foreground" />
+                                    <SelectValue placeholder="Select time..." />
+                                </SelectTrigger>
+                                <SelectContent className="rounded-2xl max-h-60">
+                                    {timeOptions.map((t) => (
+                                        <SelectItem key={t} value={t}>
+                                            {t}
+                                        </SelectItem>
+                                    ))}
+                                </SelectContent>
+                            </Select>
+                        </div>
                     </div>
 
                     <div className="grid grid-cols-2 gap-3">
