@@ -115,6 +115,7 @@ export function middleware(request: NextRequest) {
       pathname === "/login" ||
       pathname === "/" ||
       pathname === "/timetable" ||
+      pathname.startsWith("/online-class") ||
       pathname.startsWith("/messages") ||
       pathname.startsWith("/attendance") ||
       pathname === "/reports" ||
@@ -134,6 +135,7 @@ export function middleware(request: NextRequest) {
     const isAllowedPath = 
       pathname === "/login" ||
       pathname === "/" ||
+      pathname.startsWith("/online-class") ||
       pathname.startsWith("/messages") ||
       pathname.startsWith("/homework");
 
