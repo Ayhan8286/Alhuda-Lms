@@ -146,7 +146,7 @@ export async function getStudentClasses(studentId: string): Promise<ClassSchedul
         .from("classes")
         .select(`
       *,
-      teacher:teachers(id, name, staff_id),
+      teacher:teachers(id, name, staff_id, meet_link),
       app_account:app_accounts(id, platform, account_identifier),
       course:courses(id, name)
     `)

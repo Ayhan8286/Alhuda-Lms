@@ -126,6 +126,7 @@ export function TeacherOnlineClass({ teacherId }: { teacherId: string }) {
     const [linkDraft, setLinkDraft] = useState("");
     const [isNewSessionOpen, setIsNewSessionOpen] = useState(false);
     const [showCompleted, setShowCompleted] = useState(false);
+    const [showTimetable, setShowTimetable] = useState(false);
 
     // ─── Queries ─────────────────────────────────────────────
 
@@ -201,6 +202,24 @@ export function TeacherOnlineClass({ teacherId }: { teacherId: string }) {
         onError: () => toast.error("Failed to delete session"),
     });
 
+    const startRegularClassMutation = useMutation({
+        mutationFn: (variables: {
+            teacher_id: string;
+            student_id: string;
+            title: string;
+            meet_link: string;
+            scheduled_date: string;
+            scheduled_time: string;
+            duration_mins: number;
+            status: "live";
+        }) => createSession(variables),
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: ["teacherSessions", teacherId] });
+            toast.success("Class started and marked live!");
+        },
+        onError: () => toast.error("Failed to start class session"),
+    });
+
     // ─── Derived Data ────────────────────────────────────────
 
     const activeSessions = sessions.filter((s) => s.status === "scheduled" || s.status === "live");
@@ -220,6 +239,46 @@ export function TeacherOnlineClass({ teacherId }: { teacherId: string }) {
         });
         return Array.from(map.values()).sort((a, b) => a.full_name.localeCompare(b.full_name));
     }, [teacherClasses]);
+
+    // Today's classes from weekly schedule
+    const todayClasses = useMemo(() => {
+        const pkDateStr = new Date().toLocaleDateString("en-US", { timeZone: "Asia/Karachi" });
+        const pkDate = new Date(pkDateStr);
+        const daysOfWeek = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
+        const currentDayName = daysOfWeek[pkDate.getDay()];
+        const todayDateStr = pkDate.toLocaleDateString("en-CA", { timeZone: "Asia/Karachi" });
+
+        return teacherClasses
+            .filter((c) => c.schedule_days && c.schedule_days[currentDayName] === "Class")
+            .map((c) => {
+                return {
+                    id: `class-${c.id}`,
+                    teacher_id: teacherId,
+                    student_id: c.student_id,
+                    title: c.course?.name ? `Class — ${c.course.name}` : "Regular Class",
+                    meet_link: meetLink || "",
+                    scheduled_date: todayDateStr,
+                    scheduled_time: c.pak_start_time,
+                    duration_mins: 30,
+                    status: "scheduled" as const,
+                    student: c.student || null
+                };
+            });
+    }, [teacherClasses, teacherId, meetLink]);
+
+    // Regular classes for today that are not already live/scheduled in online_sessions
+    const regularTodayClasses = useMemo(() => {
+        const todayDateStr = getPakistanDate();
+        return todayClasses.filter((tc) => {
+            const hasRealSession = sessions.some(
+                (s) => 
+                    s.student_id === tc.student_id && 
+                    s.scheduled_date === todayDateStr &&
+                    (s.status === "live" || s.status === "scheduled")
+            );
+            return !hasRealSession;
+        });
+    }, [todayClasses, sessions]);
 
     // ─── Loading State ───────────────────────────────────────
 
@@ -254,6 +313,25 @@ export function TeacherOnlineClass({ teacherId }: { teacherId: string }) {
         if (session.status !== "live") {
             statusMutation.mutate({ id: session.id, status: "live" });
         }
+    };
+
+    const handleStartRegularClass = (c: any) => {
+        if (!meetLink) {
+            toast.error("Please set your Google Meet link first");
+            return;
+        }
+        window.open(meetLink, "_blank");
+        
+        startRegularClassMutation.mutate({
+            teacher_id: teacherId,
+            student_id: c.student_id,
+            title: c.title,
+            meet_link: meetLink,
+            scheduled_date: c.scheduled_date,
+            scheduled_time: c.scheduled_time,
+            duration_mins: 30,
+            status: "live",
+        });
     };
 
     return (
@@ -355,6 +433,29 @@ export function TeacherOnlineClass({ teacherId }: { teacherId: string }) {
                 )}
             </div>
 
+            {/* ── Today's Classes (Weekly Timetable) ── */}
+            {regularTodayClasses.length > 0 && (
+                <div className="space-y-4">
+                    <div className="flex items-center gap-4">
+                        <h2 className="text-xl font-black tracking-tight text-foreground">
+                            Today's Classes
+                        </h2>
+                        <span className="px-2.5 py-1 rounded-full bg-blue-500/10 text-blue-500 text-xs font-black">
+                            {regularTodayClasses.length}
+                        </span>
+                    </div>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        {regularTodayClasses.map((session) => (
+                            <RegularClassCard
+                                key={session.id}
+                                session={session}
+                                onStart={() => handleStartRegularClass(session)}
+                            />
+                        ))}
+                    </div>
+                </div>
+            )}
+
             {/* ── Actions Row ── */}
             <div className="flex items-center justify-between">
                 <div className="flex items-center gap-4">
@@ -441,6 +542,26 @@ export function TeacherOnlineClass({ teacherId }: { teacherId: string }) {
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4 opacity-60">
                             {completedSessions.slice(0, 10).map((session) => (
                                 <SessionCard key={session.id} session={session} readonly />
+                            ))}
+                        </div>
+                    )}
+                </div>
+            )}
+
+            {/* ── Weekly Timetable (Collapsible) ── */}
+            {teacherClasses.length > 0 && (
+                <div className="mt-4">
+                    <button
+                        onClick={() => setShowTimetable(!showTimetable)}
+                        className="flex items-center gap-2 text-sm font-bold text-muted-foreground hover:text-foreground transition-colors mb-4"
+                    >
+                        {showTimetable ? <ChevronUp className="size-4" /> : <ChevronDown className="size-4" />}
+                        My Weekly Timetable ({teacherClasses.length})
+                    </button>
+                    {showTimetable && (
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-8">
+                            {teacherClasses.map((c) => (
+                                <WeeklyScheduleCard key={c.id} cls={c} />
                             ))}
                         </div>
                     )}
@@ -810,4 +931,81 @@ function NewSessionDialog({
             </DialogContent>
         </Dialog>
     );
+}
+
+// ─── Regular Class Card & Weekly Timetable ──────────────────────
+
+function RegularClassCard({ session, onStart }: { session: any; onStart: () => void }) {
+    const studentName = session.student?.full_name || "Unknown Student";
+    
+    return (
+        <div className="glass-panel rounded-3xl border border-white/20 dark:border-white/5 overflow-hidden shadow-[0px_0px_48px_rgba(45,52,50,0.06)] bg-accent/5">
+            <div className="p-5">
+                <div className="flex items-start justify-between mb-3">
+                    <div className="flex-1 min-w-0">
+                        <h4 className="text-sm font-black text-foreground truncate">{session.title}</h4>
+                        <p className="text-xs text-muted-foreground mt-0.5 truncate">
+                            {studentName}
+                        </p>
+                    </div>
+                    <span className="px-2.5 py-1 rounded-full text-[10px] font-black bg-blue-500/10 text-blue-500 border border-blue-500/20 shrink-0">
+                        Today's Class
+                    </span>
+                </div>
+                <div className="flex items-center gap-4 text-xs text-muted-foreground">
+                    <div className="flex items-center gap-1.5">
+                        <Clock className="size-3.5" />
+                        <span className="font-bold">{session.scheduled_time}</span>
+                    </div>
+                    <span className="font-medium">Daily Schedule</span>
+                </div>
+            </div>
+            <div className="px-5 pb-4">
+                <button
+                    onClick={onStart}
+                    className="w-full py-2.5 flex items-center justify-center gap-2 rounded-full text-sm font-black bg-forest text-white shadow-lg shadow-forest/20 hover:bg-forest/90 transition-all active:scale-95"
+                >
+                    <Play className="size-3.5" />
+                    Start Class
+                </button>
+            </div>
+        </div>
+    );
+}
+
+function WeeklyScheduleCard({ cls }: { cls: any }) {
+    const studentName = cls.student?.full_name || "Unknown Student";
+    const daysStr = getActiveDays(cls.schedule_days);
+    
+    return (
+        <div className="glass-panel rounded-3xl border border-white/20 dark:border-white/5 p-5 shadow-[0px_0px_48px_rgba(45,52,50,0.06)] bg-accent/5">
+            <div className="flex items-start justify-between mb-2">
+                <div>
+                    <h4 className="text-sm font-bold text-foreground">{cls.course?.name || "Quran Reading"}</h4>
+                    <p className="text-xs text-muted-foreground mt-0.5">Student: {studentName} ({cls.student?.reg_no})</p>
+                </div>
+            </div>
+            <div className="flex items-center justify-between text-xs text-muted-foreground mt-4">
+                <span className="font-black text-primary">{daysStr}</span>
+                <span className="font-bold bg-accent px-2 py-0.5 rounded-full">{cls.pak_start_time} - {cls.pak_end_time} PKT</span>
+            </div>
+        </div>
+    );
+}
+
+function getActiveDays(scheduleDays?: Record<string, string> | null): string {
+    if (!scheduleDays || typeof scheduleDays !== "object") return "";
+    const shortDays: Record<string, string> = {
+        Monday: "Mon",
+        Tuesday: "Tue",
+        Wednesday: "Wed",
+        Thursday: "Thu",
+        Friday: "Fri",
+        Saturday: "Sat",
+        Sunday: "Sun"
+    };
+    return Object.keys(scheduleDays)
+        .filter((d) => scheduleDays[d] === "Class")
+        .map((d) => shortDays[d] || d)
+        .join(", ");
 }
