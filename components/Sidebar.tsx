@@ -14,6 +14,7 @@ const navItems = [
     { label: "Students", href: "/students", icon: "group" },
     { label: "Time Table", href: "/timetable", icon: "calendar_month" },
     { label: "Attendance", href: "/attendance", icon: "event_available" },
+    { label: "Online Class", href: "/online-class", icon: "video_call" },
     { label: "Tasks", href: "/tasks", icon: "assignment" },
     { label: "Messages", href: "/messages", icon: "chat" },
     { label: "Reports", href: "/reports", icon: "history_edu" },
@@ -128,12 +129,12 @@ export function Sidebar({
                     }
 
                     if (role === "teacher") {
-                        const allowed = ["Dashboard", "Time Table", "Attendance", "Reports", "Students", "Homework", "Messages"];
+                        const allowed = ["Dashboard", "Time Table", "Online Class", "Attendance", "Reports", "Students", "Homework", "Messages"];
                         if (!allowed.includes(item.label)) return null;
                     }
 
                     if (role === "student") {
-                        const allowed = ["Dashboard", "Homework", "Messages"];
+                        const allowed = ["Dashboard", "Online Class", "Homework", "Messages"];
                         if (!allowed.includes(item.label)) return null;
                     }
 

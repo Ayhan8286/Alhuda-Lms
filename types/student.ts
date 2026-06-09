@@ -34,6 +34,25 @@ export interface Teacher {
     department?: string | null;
     is_active: boolean;
     supervisor_id: string | null;
+    meet_link?: string | null;
+}
+
+export interface OnlineSession {
+    id: string;
+    teacher_id: string;
+    student_id: string;
+    class_id?: string | null;
+    title: string;
+    meet_link: string;
+    scheduled_date: string;
+    scheduled_time: string;
+    duration_mins: number;
+    status: 'scheduled' | 'live' | 'completed' | 'cancelled';
+    notes?: string | null;
+    created_at: string;
+    // Joined fields
+    teacher?: { id: string; name: string } | null;
+    student?: { id: string; full_name: string; reg_no: string } | null;
 }
 
 export interface TeacherAvailability {

@@ -27,15 +27,6 @@
     "department": "Supervisor"
   },
   {
-    "id": "faf1a674-840b-4fc5-9ba7-710cea59063d",
-    "name": "Rimsha Ilyas",
-    "email": "rimsha.supervisor@email.com",
-    "phone": "123456789",
-    "timing": "Night",
-    "password": "supervisor@",
-    "department": "Supervisor"
-  },
-  {
     "id": "58cbe316-ea70-48e9-b524-af9d8955cb55",
     "name": "Usman Mirza",
     "email": "usman.marketing@email.com",
