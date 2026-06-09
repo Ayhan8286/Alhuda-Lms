@@ -870,37 +870,23 @@ function NewSessionDialog({
                         placeholder="e.g. Quran Recitation — Amira"
                     />
 
-                    <div className="grid grid-cols-2 gap-3">
-                        <div className="space-y-1.5">
-                            <label className="text-xs font-bold text-muted-foreground ml-1">
-                                Date *
-                            </label>
-                            <input
-                                type="date"
-                                value={scheduledDate}
-                                onChange={(e) => setScheduledDate(e.target.value)}
-                                className="w-full px-4 py-3 rounded-2xl bg-accent/20 border border-border text-sm font-medium focus:outline-none focus:ring-2 focus:ring-primary/30"
-                                required
-                            />
-                        </div>
-                        <div className="space-y-1.5">
-                            <label className="text-xs font-bold text-muted-foreground ml-1">
-                                Time (PKT) *
-                            </label>
-                            <Select value={scheduledTime} onValueChange={setScheduledTime}>
-                                <SelectTrigger className="rounded-2xl border-border h-11">
-                                    <Clock className="size-4 mr-2 text-muted-foreground" />
-                                    <SelectValue placeholder="Select time..." />
-                                </SelectTrigger>
-                                <SelectContent className="rounded-2xl max-h-60">
-                                    {timeOptions.map((t) => (
-                                        <SelectItem key={t} value={t}>
-                                            {t}
-                                        </SelectItem>
-                                    ))}
-                                </SelectContent>
-                            </Select>
-                        </div>
+                    <div className="space-y-1.5">
+                        <label className="text-xs font-bold text-muted-foreground ml-1">
+                            Time (PKT) *
+                        </label>
+                        <Select value={scheduledTime} onValueChange={setScheduledTime}>
+                            <SelectTrigger className="rounded-2xl border-border h-11">
+                                <Clock className="size-4 mr-2 text-muted-foreground" />
+                                <SelectValue placeholder="Select time..." />
+                            </SelectTrigger>
+                            <SelectContent className="rounded-2xl max-h-60">
+                                {timeOptions.map((t) => (
+                                    <SelectItem key={t} value={t}>
+                                        {t}
+                                    </SelectItem>
+                                ))}
+                            </SelectContent>
+                        </Select>
                     </div>
 
                     <div className="grid grid-cols-2 gap-3">
